@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A practical guide to layered memory, context engineering, event logs, content hashing, and information lineage for AI agents.">
+  <meta property="og:title" content="Memory, Context, and Information Lineage">
+  <meta property="og:description" content="How layered memory and traceable state help AI agents recover, update, and reuse information safely.">
+  <meta name="twitter:card" content="summary">
+  <title>Memory, Context, and Information Lineage</title>
+  <style>
+    :root {
+      --paper: #f7f7f4;
+      --paper-2: #ecece8;
+      --ink: #101010;
+      --muted: #666762;
+      --line: #cfcfca;
+      --accent: #002fa7;
+      --accent-soft: #e1e7f6;
+      --warning-soft: #f1f0df;
+      --max: 980px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      line-height: 1.68;
+    }
+
+    a { color: var(--accent); }
+    code, pre, .topline, .kicker, .meta, .project-name, .label, .flow-step strong, footer {
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+
+    .page { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 28px 0 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .14em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .hero { padding: 96px 0 86px; border-bottom: 1px solid var(--line); }
+    .kicker {
+      margin: 0 0 28px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { margin: 0; font-weight: 300; letter-spacing: -.035em; line-height: 1.08; }
+    h1 { max-width: 850px; font-size: clamp(52px, 9vw, 104px); }
+    h2 { margin-top: 88px; font-size: clamp(38px, 6vw, 68px); }
+    h3 { margin-top: 54px; font-size: clamp(27px, 4vw, 40px); font-weight: 400; }
+    h4 { margin: 0; }
+
+    .dek {
+      max-width: 780px;
+      margin: 34px 0 0;
+      color: #32332f;
+      font-size: clamp(21px, 2.8vw, 30px);
+      line-height: 1.45;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 24px;
+      margin-top: 42px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    main { padding-bottom: 100px; }
+    article { max-width: 820px; margin: 0 auto; }
+    article > p, article > ul, article > ol, article > blockquote, article > .callout,
+    article > .flow, article > .layer-grid, article > .compare, article > .case-table,
+    article > pre { margin-top: 28px; }
+
+    p, li { font-size: 18px; }
+    p { margin-bottom: 0; }
+    ul, ol { padding-left: 28px; }
+    li + li { margin-top: 10px; }
+
+    .lead { color: #30312e; font-size: 23px; line-height: 1.5; }
+
+    .callout {
+      padding: 28px 32px;
+      border-left: 5px solid var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .callout p { margin: 0; font-size: 24px; line-height: 1.45; }
+    .callout strong { color: var(--accent); }
+    .callout.warning { border-left-color: #7a6a00; background: var(--warning-soft); }
+    .callout.warning strong { color: #655700; }
+
+    blockquote {
+      padding: 8px 0 8px 28px;
+      border-left: 3px solid var(--line);
+      color: #4d4e49;
+      font-size: 21px;
+    }
+
+    .compare { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .compare > div { min-height: 190px; padding: 24px; background: var(--paper-2); border-top: 4px solid var(--ink); }
+    .compare > div:nth-child(2) { background: var(--ink); color: var(--paper); border-top-color: var(--accent); }
+    .compare > div:nth-child(3) { border-top-color: #777; }
+    .label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .14em; line-height: 1.3; text-transform: uppercase; }
+    .compare > div:nth-child(2) .label { color: #b9c0d4; }
+    .compare h3 { margin-top: 18px; font-size: 28px; }
+    .compare p:last-child { margin-top: 20px; }
+
+    .project { margin-top: 72px; padding-top: 26px; border-top: 1px solid var(--line); }
+    .project-name { color: var(--accent); font-size: 13px; font-weight: 700; letter-spacing: .08em; overflow-wrap: anywhere; }
+    .project h3 { margin-top: 12px; }
+
+    .flow { display: grid; gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .flow-step { display: grid; grid-template-columns: 58px 1fr; gap: 18px; padding: 19px 0; border-top: 1px solid var(--line); }
+    .flow-step:first-child { border-top: 0; }
+    .flow-step strong { color: var(--accent); font-size: 14px; line-height: 1.6; }
+    .flow-step span { font-size: 18px; }
+
+    pre { overflow-x: auto; padding: 24px; background: #e9e9e4; color: #20211f; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+    code { padding: .08em .28em; background: #e9e9e4; font-size: .9em; }
+    pre code { padding: 0; background: transparent; font-size: inherit; }
+
+    .case-table { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 16px; }
+    th, td { padding: 14px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--accent); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+
+    .layer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .layer { min-height: 150px; padding: 22px; background: var(--paper-2); }
+    .layer:nth-child(3) { background: var(--accent); color: white; }
+    .layer-number { display: block; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .12em; line-height: 1.2; }
+    .layer:nth-child(3) .layer-number { color: #c8d2ee; }
+    .layer strong { display: block; margin-top: 38px; font-size: 20px; line-height: 1.3; }
+
+    .source-list { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .source-list h3 { margin-top: 0; font-size: 30px; }
+    .source-list li { font-size: 16px; }
+
+    footer { padding: 36px 0 70px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+    @media (max-width: 760px) {
+      .page { width: min(var(--max), calc(100% - 28px)); }
+      .topline { font-size: 10px; }
+      .hero { padding: 64px 0 58px; }
+      h2 { margin-top: 66px; }
+      p, li { font-size: 17px; }
+      .lead { font-size: 21px; }
+      .compare, .layer-grid { grid-template-columns: 1fr; }
+      .callout { padding: 22px; }
+      .callout p { font-size: 21px; }
+      .flow-step { grid-template-columns: 44px 1fr; }
+      th, td { padding: 11px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topline">
+      <span>AI Systems · Technical Note</span>
+      <span>Context Engineering</span>
+    </header>
+
+    <section class="hero">
+      <p class="kicker">Memory / context / lineage</p>
+      <h1>Memory, Context, and Information Lineage</h1>
+      <p class="dek">A practical way to think about layered memory in AI agents, from short-term conversation state to durable facts, event logs, content hashing, and traceable updates.</p>
+      <div class="meta"><span>Agent memory</span><span>State management</span><span>Context assembly</span></div>
+    </section>
+
+    <main>
+      <article>
+        <h2 id="memory-context">1. First, Separate Memory from Context</h2>
+
+        <p class="lead">Memory is state stored outside a single request so it can be reused later. Context is the input that a model actually sees during one specific request.</p>
+        <p>They are related, but they serve different purposes.</p>
+
+        <div class="flow" aria-label="From raw records to current context and updated records">
+          <div class="flow-step"><strong>01</strong><span>Raw messages, structured facts, and audit logs</span></div>
+          <div class="flow-step"><strong>02</strong><span>Selection, compression, ordering, and token budgeting</span></div>
+          <div class="flow-step"><strong>03</strong><span>Context assembled for the current request</span></div>
+          <div class="flow-step"><strong>04</strong><span>Generation, quality checks, fact extraction, and state updates</span></div>
+          <div class="flow-step"><strong>05</strong><span>New raw messages, structured facts, and audit logs</span></div>
+        </div>
+
+        <p>Real context engineering has to answer four questions:</p>
+        <ol>
+          <li>What information is worth keeping?</li>
+          <li>What information is relevant to this request?</li>
+          <li>Which source and version should win when facts conflict?</li>
+          <li>How do we compress context without losing safety-critical information?</li>
+        </ol>
+
+        <h2 id="layers">2. The Foundation of Context Management: Layered Memory</h2>
+        <p>A memory system should not be one giant history bucket.</p>
+        <p>Different kinds of information have different lifetimes, trust levels, and usage patterns. They should be managed separately.</p>
+
+        <div class="compare">
+          <div><p class="label">Short-term memory</p><h3>Continuity</h3><p>What was happening in the active conversation a moment ago?</p></div>
+          <div><p class="label">Long-term memory</p><h3>Reusable facts</h3><p>Which confirmed information should still influence future work?</p></div>
+          <div><p class="label">Public knowledge</p><h3>External reference</h3><p>What rules, documents, or domain knowledge can the system reuse?</p></div>
+        </div>
+
+        <h3 id="short-term">2.1 Short-Term Memory Preserves Continuity, Not Authority</h3>
+        <p>Short-term memory answers a simple question:</p>
+        <blockquote>What was happening in this conversation a moment ago?</blockquote>
+        <p>A typical implementation isolates it with a <code>sessionId</code>. In multi-user, multi-case, or concurrent environments, that boundary may also need <code>userId</code> and <code>caseId</code>.</p>
+        <p>Redis is a reasonable place to keep this data as a short-lived cache. It can quickly restore recent context when a user has just corrected something, added missing information, or left the app and returned later.</p>
+        <p>A common configuration is a 24-hour TTL. If Redis expires, the system can rebuild the recent conversation from MySQL, assuming the raw messages were stored durably.</p>
+
+        <div class="callout"><p><strong>Redis is an acceleration layer.</strong> It should not be the only source of truth.</p></div>
+
+        <p>Short-term memory should preserve recent raw messages, including:</p>
+        <ul>
+          <li>user input;</li>
+          <li>assistant replies;</li>
+          <li>unfinished follow-ups;</li>
+          <li>current task state;</li>
+          <li>recent routing and safety state;</li>
+          <li>temporary evidence related to the current issue.</li>
+        </ul>
+        <p>The raw form matters because later operations may need it for state extraction, question tracing, or error diagnosis.</p>
+        <p>A summary may disagree with the long-term state. When that happens, the system should record the summary’s source and version, inspect the original messages, and treat the validated long-term state as authoritative.</p>
+        <p>Short-term memory also has to handle concurrency:</p>
+        <ul>
+          <li>the same user operates on mobile and web at the same time;</li>
+          <li>a background summarization job has not finished;</li>
+          <li>multiple service instances process the same session;</li>
+          <li>an older summary tries to overwrite a newer one.</li>
+        </ul>
+        <p>Without versioning or compare-and-set semantics, an old summary can silently replace a newer state.</p>
+        <p>Short-term memory is a good fit for recent conversation turns, the current task goal, recent routing decisions, and temporary evidence. It is a poor place to store durable facts.</p>
+
+        <h3 id="long-term">2.2 Long-Term Memory Stores Fact State, Not a Polished Summary</h3>
+        <p>Long-term memory should turn reusable information into state that can be verified and updated.</p>
+        <p>A safer flow looks like this:</p>
+        <pre><code>Raw message
+    ↓
+MemoryExtractor
+    ↓
+Structured patch
+    ↓
+StateReducer
+    ↓
+CaseState
+    ↓
+Audit records and derived indexes</code></pre>
+
+        <p>The model only proposes a structured patch. It cannot directly overwrite facts in the database.</p>
+        <p><code>StateReducer</code> checks the source, format, version, user boundary, and case boundary. It does not decide whether a medical statement is clinically true.</p>
+        <p>For example, if a user says:</p>
+        <blockquote>I developed a rash after taking a certain medication.</blockquote>
+        <p>The system may extract:</p>
+        <pre><code>rash_after_medication = candidate</code></pre>
+        <p>It should not silently turn that into:</p>
+        <pre><code>the user is allergic to that medication</code></pre>
+        <p>The user’s statement, the model’s inference, and a professionally verified conclusion have different authority levels.</p>
+        <p>When old and new facts conflict, the system should preserve both sources and record a conflict state. It should not select one simply because it looks more similar or more recent.</p>
+        <p>A later user correction, withdrawal, or confirmation can then drive an explicit state transition.</p>
+        <p>Important facts should remain traceable to at least:</p>
+        <pre><code>sourceMessageId
+version
+status
+object or scope
+confirmationSource
+createdAt
+updatedAt</code></pre>
+        <p>That allows the system to answer questions such as:</p>
+        <ul>
+          <li>Where did this fact come from?</li>
+          <li>Which model or rule produced it?</li>
+          <li>Did it replace an older version?</li>
+          <li>Was it confirmed, withdrawn, or still only a candidate?</li>
+        </ul>
+
+        <h3 id="public-knowledge">2.3 Public Knowledge Is a Source, Not User Memory</h3>
+        <p>Public knowledge includes documents, standards, product information, and other reusable domain knowledge.</p>
+        <p>Long-term memory answers:</p>
+        <blockquote>What happened to this user, case, or object?</blockquote>
+        <p>Public knowledge answers:</p>
+        <blockquote>What is the normal rule or background knowledge in this domain?</blockquote>
+        <p>A RAG system can technically store long-term memory, but the business semantics are different.</p>
+        <p>Some long-term memories are natural-language preferences or historical summaries. Users may describe the same thing with different wording later, so semantic search can be useful.</p>
+        <p>Exact patient facts, configuration values, thresholds, and other authoritative fields should use structured storage and explicit validation.</p>
+        <p>The current context may need all three sources:</p>
+        <pre><code>Short-term memory
+        +
+Long-term facts
+        +
+Public knowledge</code></pre>
+        <p>Their authority, update process, and deletion rules must remain separate.</p>
+
+        <h2 id="deepseek">3. DeepSeek Harness: Recoverable Runtime State Through Event Logs</h2>
+        <p>I recently studied the architecture of DeepSeek Harness. The important idea is not simply to add another <code>Memory</code> class.</p>
+        <p>It is to turn the Agent’s runtime into a traceable event stream.</p>
+        <p>In its public architecture, the session is built around an append-only, typed event log. Model-visible message history can be derived from that log. The model adapter, tool registry, session log, and Agent Loop are all replaceable through plugins. <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md">DeepSeek Harness Architecture</a> <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.md">Session Subsystem</a></p>
+        <p>This solves a runtime problem:</p>
+        <ul>
+          <li>Where is the Agent in its execution?</li>
+          <li>What did the model actually see?</li>
+          <li>Which tools were called?</li>
+          <li>What did those tools return?</li>
+          <li>Can the task continue after a restart?</li>
+        </ul>
+        <p>Before thinking about this, it is tempting to store recent messages and intent state directly inside the Agent process.</p>
+        <p>That works in a single-user demo.</p>
+        <p>Once the service restarts, multiple sessions run concurrently, or several instances process the same case, the state can disappear or leak between conversations.</p>
+        <p>Short-term memory should therefore not exist only as a temporary in-process object.</p>
+        <p>Recent messages, tool calls, model responses, and task state should have recoverable records. The current Prompt is only a projection of these records.</p>
+        <p>Compression needs the same discipline.</p>
+        <pre><code>Raw Session Events
+        ↓
+Context projection or compaction result
+        ↓
+Current model-visible context</code></pre>
+        <p>The compaction result is replaceable derived data. The raw event log remains the source for reconstruction.</p>
+
+        <div class="compare">
+          <div><p class="label">Principle one</p><h3>Separate state from Agent code</h3><p>Conversation records should not disappear when a process is restarted or replaced.</p></div>
+          <div><p class="label">Principle two</p><h3>Rebuild what the model sees</h3><p>Current context should be derived from traceable records rather than treated as the only copy.</p></div>
+          <div><p class="label">Boundary</p><h3>Logs do not solve everything</h3><p>Recovery still depends on durable writes, ordering, idempotency, and reliable replay logic.</p></div>
+        </div>
+        <p>If compression fails, the service restarts, or multiple instances switch ownership, the system still has a path back through the event log.</p>
+
+        <h2 id="mycontext">4. MyContext: Content Hashing and Information Lineage</h2>
+        <p>MyContext focuses on a different problem.</p>
+        <p>Information may come from many places. The system needs to keep collecting, processing, searching, and returning it while preserving the original evidence.</p>
+        <pre><code>Data sources
+    ↓
+Incremental ingestion
+    ↓
+Raw records
+    ↓
+Structured facts and relationships
+    ↓
+Full-text, vector, and graph indexes
+    ↓
+Retrieved results with source references</code></pre>
+
+        <h3>4.1 Content Hashing Detects Changes Under the Same ID</h3>
+        <p>In an earlier design, I used <code>sourceMessageId</code> for deduplication.</p>
+        <p>That is insufficient when the same ID can point to changed content.</p>
+        <p>For example, the first version of a record says:</p>
+        <blockquote>The project is using MySQL 8.</blockquote>
+        <p>A later version says:</p>
+        <blockquote>The database has moved to PostgreSQL.</blockquote>
+        <p>If the message ID does not change, the system may treat the record as already processed. The long-term state then remains stale.</p>
+        <p>Adding <code>contentHash</code> lets the system detect content changes under the same ID and trigger a new extraction, version replacement, or conflict process.</p>
+        <p>The graph layer should also distinguish between the original source unit and the retrieval chunk derived from it. Each derived chunk should retain its content hash and processing lineage.</p>
+
+        <h3>4.2 Information Lineage Explains Where a Fact Came From</h3>
+        <p>The system should preserve more than the final fact.</p>
+        <p>It should also know:</p>
+        <ul>
+          <li>which source produced it;</li>
+          <li>which extraction task generated it;</li>
+          <li>which model and Prompt version were used;</li>
+          <li>whether it replaced an older version;</li>
+          <li>which indexes need to be rebuilt if the source changes.</li>
+        </ul>
+        <p>A complete lineage chain may look like this:</p>
+        <pre><code>Original message
+    ↓
+Extraction task
+    ↓
+Candidate fact or structured patch
+    ↓
+StateReducer validation
+    ↓
+CaseState version
+    ↓
+Full-text, vector, or graph index</code></pre>
+        <p>A useful implementation can track fields such as:</p>
+        <pre><code>sourceMessageId
+extractionRunId
+modelVersion
+promptVersion
+pipelineVersion
+factVersion
+supersedesId
+createdAt</code></pre>
+        <p>This lets the system answer:</p>
+        <ul>
+          <li>Where did this memory come from?</li>
+          <li>Which model or rule produced it?</li>
+          <li>Did it replace an earlier version?</li>
+          <li>Which indexes need to be rebuilt?</li>
+          <li>What derived data must be removed when the user deletes the source?</li>
+        </ul>
+        <p>This is what makes memory auditable instead of merely searchable.</p>
+
+        <h2 id="example">5. A Compact End-to-End Example</h2>
+        <p>Consider a generic project fact.</p>
+        <p>The user says:</p>
+        <blockquote>This project currently runs on MySQL 8 and is deployed on Alibaba Cloud.</blockquote>
+        <p><code>MemoryExtractor</code> creates a candidate patch:</p>
+        <pre><code>database.engine = MySQL 8
+deployment.provider = Alibaba Cloud
+status = CANDIDATE
+sourceMessageId = msg-001</code></pre>
+        <p>The user confirms the information, so both facts move to <code>CONFIRMED</code>.</p>
+        <p>Two weeks later, the user says:</p>
+        <blockquote>The database has moved to PostgreSQL, and the deployment has moved to AWS.</blockquote>
+        <p>The system creates new versions instead of overwriting the old records:</p>
+        <div class="case-table">
+          <table>
+            <thead><tr><th>Fact</th><th>State</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>MySQL 8</td><td><code>SUPERSEDED</code></td><td>Historical version</td></tr>
+              <tr><td>Alibaba Cloud</td><td><code>SUPERSEDED</code></td><td>Historical version</td></tr>
+              <tr><td>PostgreSQL</td><td><code>CONFIRMED</code></td><td>Current active fact</td></tr>
+              <tr><td>AWS</td><td><code>CONFIRMED</code></td><td>Current active fact</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The next model request should receive:</p>
+        <pre><code>Database: PostgreSQL
+Deployment: AWS</code></pre>
+        <p>The old MySQL and Alibaba Cloud records remain available for auditing and historical reconstruction. They do not participate in ordinary retrieval.</p>
+        <p>If Redis expires, the system can rebuild the current state from MySQL and the event history.</p>
+        <p>If an old vector index still contains “MySQL 8,” the status gate should block that stale result before it reaches the model.</p>
+        <div class="callout"><p><strong>The model proposes a change.</strong> The user or an approved source confirms it. The reducer creates a new version. Current context reads active facts, while audit records preserve the change history.</p></div>
+        <p>The same pattern works for project configuration, user preferences, customer profiles, order status, and other domains.</p>
+
+        <h2 id="summary">6. Summary</h2>
+        <p>DeepSeek Harness focuses on what the Agent is doing and how to recover it.</p>
+        <p>MyContext focuses on where information came from and how to keep processing and tracing it.</p>
+        <p>For a general Agent memory system, these ideas can be combined into four responsibilities:</p>
+        <div class="layer-grid">
+          <div class="layer"><span class="layer-number">01 / EVENT LOG</span><strong>Record the runtime process</strong></div>
+          <div class="layer"><span class="layer-number">02 / LONG-TERM STATE</span><strong>Preserve reusable facts</strong></div>
+          <div class="layer"><span class="layer-number">03 / CONTENT HASH</span><strong>Detect changes under the same source ID</strong></div>
+          <div class="layer"><span class="layer-number">04 / LINEAGE</span><strong>Explain where each fact came from</strong></div>
+        </div>
+        <p>Context assembly decides what the model should see in the current request.</p>
+        <p>Compression is one governance mechanism inside that process. It should never become the only source of truth.</p>
+
+        <h3 id="validate">How to Validate the Design</h3>
+        <p>A minimal validation plan should check four cases:</p>
+        <ul>
+          <li>after the project switches to PostgreSQL, the current Prompt no longer uses MySQL;</li>
+          <li>after Redis expires, the same current state can be rebuilt from MySQL;</li>
+          <li>stale index results are blocked by the fact status;</li>
+          <li>every active fact can be traced back to its source message and version.</li>
+        </ul>
+        <div class="callout warning"><p><strong>Implementation boundary.</strong> The layered memory, persistent event records, and auditable CaseState described here are production design patterns. They should not be presented as shipped capabilities unless the corresponding storage, replay, and validation paths exist in code.</p></div>
+
+        <section class="source-list" aria-labelledby="sources-heading">
+          <h3 id="sources-heading">Sources</h3>
+          <ul>
+            <li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md">DeepSeek Harness Architecture</a></li>
+            <li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.md">DeepSeek Harness Session Subsystem</a></li>
+          </ul>
+        </section>
+      </article>
+    </main>
+
+    <footer><div class="page">Memory, context, and lineage · A technical note on Agent systems</div></footer>
+  </div>
+</body>
+</html>
