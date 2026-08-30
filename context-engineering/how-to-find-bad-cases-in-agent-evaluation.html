@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A four-layer detection framework for finding bad cases in agent evaluation, compared with the open-source ai-evaluation-skill project.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="How to Find Bad Cases in Agent Evaluation">
+  <meta property="og:description" content="A four-layer detection framework compared with the open-source ai-evaluation-skill project.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Find Bad Cases in Agent Evaluation">
+  <meta name="twitter:description" content="A four-layer detection framework compared with the open-source ai-evaluation-skill project.">
+  <title>How to Find Bad Cases in Agent Evaluation</title>
+  <style>
+    :root {
+      --paper: #f7f7f4;
+      --paper-2: #ecece8;
+      --ink: #101010;
+      --muted: #666762;
+      --line: #cfcfca;
+      --accent: #002fa7;
+      --accent-soft: #e1e7f6;
+      --max: 980px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      line-height: 1.68;
+    }
+
+    a { color: var(--accent); }
+    code, pre, .topline, .kicker, .label, .flow-step strong {
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+
+    .page { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 28px 0 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .14em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .hero { padding: 96px 0 86px; border-bottom: 1px solid var(--line); }
+    .kicker {
+      margin: 0 0 28px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    h1, h2 { margin: 0; font-weight: 300; letter-spacing: -.035em; line-height: 1.08; }
+
+    h1 {
+      max-width: 850px;
+      font-size: clamp(52px, 9vw, 104px);
+    }
+
+    h2 {
+      margin-top: 88px;
+      font-size: clamp(38px, 6vw, 68px);
+    }
+
+    main { padding-bottom: 100px; }
+    article { max-width: 820px; margin: 0 auto; }
+    article > p, article > ul, article > .callout, article > .flow, article > .compare, article > table { margin-top: 28px; }
+
+    p, li { font-size: 18px; }
+    p { margin: 0; }
+
+    .lead {
+      color: #30312e;
+      font-size: 23px;
+      line-height: 1.5;
+    }
+
+    .callout {
+      padding: 28px 32px;
+      border-left: 5px solid var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .callout p { margin: 0; font-size: 24px; line-height: 1.45; }
+    .callout strong { color: var(--accent); }
+
+    .flow {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .flow-step {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 18px;
+      padding: 19px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .flow-step:first-child { border-top: 0; }
+    .flow-step strong { color: var(--accent); font-size: 14px; line-height: 1.6; }
+    .flow-step span { font-size: 18px; }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .compare > div {
+      min-height: 190px;
+      padding: 24px;
+      background: var(--paper-2);
+      border-top: 4px solid var(--ink);
+    }
+
+    .compare > div:nth-child(2) {
+      background: var(--ink);
+      color: var(--paper);
+      border-top-color: var(--accent);
+    }
+
+    .compare > div:nth-child(3) { border-top-color: #777; }
+    .compare-long { grid-template-columns: 1fr; }
+    .compare-long > div { min-height: 0; }
+    .compare-long > div:nth-child(2) { background: var(--paper-2); color: var(--ink); border-top-color: var(--accent); }
+    .compare-long > div:nth-child(3) { border-top-color: #777; }
+    .label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .14em; line-height: 1.3; text-transform: uppercase; }
+    .compare-long p:not(.label) { margin-top: 18px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 16px;
+    }
+    th, td {
+      text-align: left;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      border-bottom: 2px solid var(--ink);
+    }
+    td:first-child {
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    ul { padding-left: 22px; margin: 0; }
+    li { margin-top: 10px; }
+    li:first-child { margin-top: 0; }
+
+    @media (max-width: 760px) {
+      .page { width: min(var(--max), calc(100% - 28px)); }
+      .topline { font-size: 10px; }
+      .hero { padding: 64px 0 58px; }
+      h2 { margin-top: 66px; }
+      p, li { font-size: 17px; }
+      .lead { font-size: 21px; }
+      .compare { grid-template-columns: 1fr; }
+      .callout { padding: 22px; }
+      .callout p { font-size: 21px; }
+      .flow-step { grid-template-columns: 44px 1fr; }
+      table { font-size: 14px; }
+      th, td { padding: 12px 10px; }
+      td:first-child { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topline">
+      <span>AI Systems · Technical Note</span>
+      <span>Agent Evaluation / Bad Case Detection</span>
+    </header>
+
+    <section class="hero">
+      <p class="kicker">AI / AGENT EVALUATION / BAD CASE DETECTION</p>
+      <h1>How to Find Bad Cases in Agent Evaluation</h1>
+    </section>
+
+    <main>
+      <article>
+
+      <p class="lead">I recently came across the open-source <a href="https://github.com/YLTsing/ai-evaluation-skill">ai-evaluation-skill</a> project. It uses skills to automate evaluation, much like my own approach. Where we differ is in how bad cases get discovered and assessed.</p>
+
+      <p>The project follows a well-engineered pipeline: a fixed Benchmark, an Evaluation Runner that calls the product's real entry point, an LLM-as-Judge that scores outputs across multiple Rubric dimensions and flags veto candidates, mandatory human review plus a 10% stratified sample, a Bad Case ledger, manual root-cause attribution across eight layers, and finally repair with feedback into the Benchmark. The engineering discipline here is solid. The Rubric scoring, the strict review gates, and the closed-loop Bad Case process are all done well.</p>
+
+      <p>Where I think it can be supplemented is the active discovery of bad cases. The project relies heavily on Judge scores and human review to surface problems. If a case produces a high-quality output but takes a problematic execution path, the Judge may never flag it. There is no runtime behavior anomaly detection based on traces. Root-cause attribution happens manually after the fact, in the Bad Case closed-loop phase. Online signals such as user feedback, support tickets, and monitoring data are imported into the ledger passively rather than being extracted automatically from live sessions. And the human review queue has no priority ordering. Every mandatory review item carries equal weight.</p>
+
+      <div class="callout"><p>My approach adds <strong>four progressive layers of automated detection</strong> before the Judge scoring and human review stage. Each layer narrows the scope using deterministic rules and weak signals, so human attention is spent only on cases that genuinely need judgment.</p></div>
+
+      <h2>Layer 1: Format and Structure Validation</h2>
+
+      <p>This is the cheapest layer and the right place to start automation.</p>
+
+      <p>The ai-evaluation-skill Runner records execution status, trace IDs, and errors. But it does not have a dedicated structure validation layer that filters out cases which clearly did not complete. Every case, including those where the LLM returned nothing, the trace is missing fields, or the Agent flow did not finish, still enters the Judge phase. When the Judge faces an empty output or an incomplete trace, the score itself becomes unreliable.</p>
+
+      <p>My approach compares the structured fields of the case and the trace directly, without involving any model:</p>
+
+      <ul>
+        <li>Whether <code>case_id</code> exists</li>
+        <li>Whether <code>trace_id</code> exists</li>
+        <li>Whether <code>expected_route</code> and <code>actual_route</code> are comparable</li>
+        <li>Whether <code>expected_path</code> is hit</li>
+
+      </ul>
+
+      <p>This filters obvious execution failures: the LLM did not return, the Trace is missing fields, the Agent flow did not complete, or the final reply is empty. These problems do not need a model to judge. They are bad cases by definition.</p>
+
+      <p><strong>Compared with ai-evaluation-skill:</strong> its Judge has to handle both "did it run to completion" and "is the output good" at the same time. I intercept deterministic structure problems with rules in Layer 1, so the Judge only needs to process cases that actually completed.</p>
+
+      <h2>Layer 2: Behavior Anomaly Detection</h2>
+
+      <p>I will use my own project as an example here. You can adapt these checks to your own business context.</p>
+
+      <p>My project is not a typical tool-calling agent. It uses an agent loop architecture I orchestrated myself: a ChatService while loop, Agent execution, a returned NextAction, and then the next Agent.</p>
+
+      <p>The ai-evaluation-skill Judge scores output quality across Rubric dimensions such as accuracy, relevance, and task completion. It cares about whether the final answer is good. But agent evaluation has a special problem: the answer may be acceptable, but the process may be wrong. For example, a high-risk input eventually reaches a safety template, but the route is not input safety interception. It gets blocked by quality inspection only after generation. Looking at output quality alone, this case would be marked as "answered correctly." But it is actually a risk case.</p>
+
+      <p>The ai-evaluation-skill Bad Case closed-loop does include "tool calling" as a root-cause layer, but that is used for manual attribution after the fact, not for automated detection at runtime.</p>
+
+      <p>Behavior anomalies I detect include:</p>
+
+      <ul>
+        <li>The same Agent executes more than N times consecutively</li>
+        <li>The same NextAction appears repeatedly</li>
+        <li>The actual retry count exceeds <code>maxRetry</code></li>
+      </ul>
+
+      <p>This layer is valuable because it catches bad cases where "the result is correct but the process is abnormal." Rubric scoring cannot cover this. Rubric evaluates output, not execution path. An agent is not a pure function. The execution path itself is part of quality.</p>
+
+      <p><strong>Compared with ai-evaluation-skill:</strong> its bad case discovery depends on the Judge scoring output quality. If the output is good, the case will not be flagged as a veto candidate. My Layer 2 specifically catches "good output, wrong process" cases using rule-based detection on traces, with no model judgment required.</p>
+
+      <h2>Layer 3: Optional Low-Confidence Detection</h2>
+
+      <p>This layer is optional. It is not required.</p>
+
+      <p><strong>Only when the volume of high-risk cases is large enough that human or Oracle review becomes a bottleneck</strong> do I run an independent validation path as a shadow check. The main pipeline generates once, and the shadow validation pipeline makes an independent judgment. The first run executes the complete main pipeline. The second run only executes the high-risk decision nodes. If the two runs show large differences, the case is marked as low-confidence.</p>
+
+      <p>But this mark is <strong>only used to adjust review priority. It is never used to directly classify a bad case.</strong> A large difference means "this case deserves to be looked at first," not "this case is definitely wrong."</p>
+
+      <p><strong>If all current high-risk cases can be directly and finally confirmed by humans, this layer is skipped.</strong> There is no reason to use it for its own sake.</p>
+
+      <p>Why not run it on everything? Not just because of cost. Consistency checking suits high-value decision points: crisis identification, follow-up decisions, RAG evidence conflicts. These are places where errors have high impact, so shadow check helps order the review queue. Running it on every ordinary answer would amplify model randomness and produce low-value noise.</p>
+
+      <p>The shadow pipeline can also be wrong. Many differences fall into "multiple reasonable interpretations": the user's expression is ambiguous and both routes have basis, the main pipeline has more context while the shadow input may differ, or one route chooses to ask a follow-up while the other thinks it can answer directly. So the output can only be a priority signal, never a conclusion.</p>
+
+      <p><strong>Compared with ai-evaluation-skill:</strong> its human review uses "mandatory set plus 10% sampling," and every mandatory review item carries equal weight in the queue. There is no priority ordering. Its low-confidence signal comes from the <code>uncertainty</code> field that the Judge self-reports, which is essentially the same model expressing doubt about its own score. My Layer 3 uses an independent shadow pipeline for a second judgment. The difference between two paths is more reliable than a single model self-reporting uncertainty. And this difference is only used to order the review queue. When high-risk cases are few, humans can review them directly and this layer is unnecessary. When the volume becomes too large to handle, it helps surface the most likely problematic cases first.</p>
+
+      <h2>Layer 4: Implicit Feedback</h2>
+
+      <p>This can only serve as a weak signal. It cannot be used directly as a failure label.</p>
+
+      <p>In the ai-evaluation-skill Bad Case workflow, failure signal sources include "user feedback, support tickets, online monitoring, A/B tests, or retrospective imports." But these are all <strong>passively imported</strong>. Someone has to organize the online problem and write it into the ledger. The system itself does not automatically extract bad case signals from live sessions. Its primary bad case source remains the fixed Benchmark in offline evaluation.</p>
+
+      <p>My Layer 4 automatically extracts supplementary signals from live sessions. For example, right after the Agent answers, the user immediately asks again: "You didn't answer my question just now," or "In other words..." Or the user repeats the same question with similar semantics. This may indicate that the first answer did not solve the problem. But it could also just be a normal follow-up question, so the more reasonable handling is:</p>
+
+      <div class="flow" aria-label="Implicit feedback handling">
+        <div class="flow-step"><strong>01</strong><span>Implicit feedback enters the bad case candidate pool.</span></div>
+        <div class="flow-step"><strong>02</strong><span>Explicit feedback, trace analysis, or offline evaluation confirms the bad case.</span></div>
+      </div>
+
+      <p>The system combines sessionId, caseId, time window, semantic similarity, whether new information was added, negative user expressions, and the previous round's trace to make a judgment. If it confirms that the answer did not solve the problem, a skill converts it into a regression case by filling in <code>expected_route</code>, <code>expected_path</code>, <code>must_include</code>, and <code>diagnosis_hints</code>. It then enters regression evaluation.</p>
+
+      <p>Do not feed this directly to a PolicyLearningService as a negative reward. That would easily produce false positives on normal multi-turn conversations.</p>
+
+      <p><strong>Compared with ai-evaluation-skill:</strong> its online signals are manually imported into the ledger, and bad cases come primarily from the fixed Benchmark. My Layer 4 automatically extracts weak signals from live sessions and generates candidates, which then go through a confirmation process before becoming regression cases. A fixed Benchmark will overfit and cannot cover long-tail problems. Automatically detected implicit feedback from online sessions is an important supplement. And it follows the same "candidate then confirmation" two-stage judgment, never treating weak signals as direct conclusions. This is consistent in spirit with ai-evaluation-skill's rule that "the Judge can only flag veto candidates, and final veto requires human confirmation."</p>
+
+      <h2>Putting It Together</h2>
+
+      <p>The four layers, side by side with ai-evaluation-skill:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>ai-evaluation-skill</th>
+            <th>Four-Layer Approach</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Primary bad case source</td>
+            <td>Fixed Benchmark offline evaluation</td>
+            <td>Benchmark plus automatically extracted online implicit feedback (Layer 4)</td>
+          </tr>
+          <tr>
+            <td>Obvious execution failures</td>
+            <td>Enter the Judge phase, scored by Rubric</td>
+            <td>Intercepted directly by Layer 1 structure validation, never reach the Judge</td>
+          </tr>
+          <tr>
+            <td>"Good result, wrong process"</td>
+            <td>Rubric scores output quality; path anomalies require manual post-hoc attribution</td>
+            <td>Layer 2 automatically detects behavior rules based on traces</td>
+          </tr>
+          <tr>
+            <td>Low-confidence signal</td>
+            <td>Judge self-reports <code>uncertainty</code>, triggers mandatory review</td>
+            <td>Independent shadow pipeline double-run; differences only order review priority</td>
+          </tr>
+          <tr>
+            <td>Human review queue</td>
+            <td>Mandatory set plus 10% sampling, no priority</td>
+            <td>Direct confirmation when volume is low; Layer 3 shadow check orders priority when volume is large</td>
+          </tr>
+          <tr>
+            <td>Online signals</td>
+            <td>Manually imported into the ledger</td>
+            <td>System automatically extracts candidates, confirmed before becoming regression cases</td>
+          </tr>
+          <tr>
+            <td>Root-cause identification</td>
+            <td>Manual attribution across 8 layers in the Bad Case closed-loop</td>
+            <td>Layers 1 and 2 automatically locate via rules; humans only handle the candidate pool</td>
+          </tr>
+          <tr>
+            <td>Signal reliability</td>
+            <td>Judge score plus human review gate</td>
+            <td>Signal strength decreases per layer; candidate and confirmation are separated; weak signals never become direct conclusions</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>The core point is this: ai-evaluation-skill does solid work in evaluation engineering discipline. Its Rubric scoring, strict review gates, and Bad Case closed-loop are all well built. Its limitation is not that it does something wrong. It is that bad case discovery relies too heavily on the Judge scoring output quality and on human review. It lacks automatic supplementation for execution path anomalies, online weak signals, and review efficiency.</p>
+
+      <p>My four-layer approach is not meant to replace it. It adds an automatic screening layer before its Judge plus human review pipeline: deterministic structure validation as the safety net, rule-based behavior anomaly detection, optional shadow check to optimize review efficiency, and online implicit feedback to supplement coverage. Each layer knows what it can and cannot do. Human attention is concentrated on cases that genuinely require judgment. Combining both approaches is what agent evaluation should look like.</p>
+
+      </article>
+    </main>
+  </div>
+</body>
+</html>
